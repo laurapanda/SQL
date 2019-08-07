@@ -1,0 +1,358 @@
+-- PostGres SQL --
+
+------------------
+----- INTRO ------
+
+-- Query for all the different languages from the films table.
+SELECT DISTINCT language
+FROM films;
+
+------------------
+----- WHERE ------
+
+-- Q1. Query for titles and duration of films shorter than 1 hour. --> numeric
+SELECT title, duration
+FROM films
+WHERE duration < 60;
+
+-- Q2. Query for titles and release year of films in 1960s. --> numeric
+SELECT title, release_year
+FROM films
+WHERE release_year BETWEEN 1960 AND 1969;
+
+-- Q3. Query for titles and certifications of films which are not R rated movies. --> string
+SELECT title, certification
+FROM films
+WHERE certification != 'R';
+
+-- Q4. Query for titles and countries of films in German, Spanish and French. --> string
+SELECT title, country
+FROM films
+WHERE language IN ('German', 'Spanish','French');
+
+-- Q5. I cannot remember the exact title of a movie, which contains the words 'Alexander...Horrible..... Bad Day’, write a query to find this movie.
+SELECT *
+FROM films
+WHERE title LIKE '%Alexander%Horrible%Bad Day';
+
+-- Q6. Query for the names and birthdates of people who were born in January of 1975.
+SELECT name, birthdate
+FROM films
+WHERE birthdate BETWEEN '1975-01-01' AND '1975-01-31';
+
+-- Q8. Query for the title, country, year and gross information of movies made in the US or the UK, which were released after 2000 or before 1980,
+-- and are have the word ‘Dog’ in the title, and have a duration between 1.5h to 2h
+SELECT title, country, release_year, gross
+FROM films
+WHERE country IN ('USA','UK')
+AND (release_year > 2000 OR release_year < 1980)
+AND title LIKE '%Dog%'
+AND duration BETWEEN 90 AND 120
+AND gross IS NOT NULL;
+
+-- Q9. Query for title and profit of R rated films in the 1990s. Sort results from the max profit to min profit. Filter out the records with missing values in budget or gross columns.
+SELECT title, (gross-budget) AS profit
+FROM films
+WHERE certification = 'R'
+AND release_year BETWEEN 1990 AND 1999
+AND (gross-budget) IS NOT NULL
+ORDER BY profit DESC;
+
+
+--------------------
+---- Aggregate -----
+
+-- Q1. Query for MAX and MIN values of all numeric columns in films and rename the results using AS max_column or AS min_column.
+SELECT MAX(gross) AS max_gross, MIN(gross) AS min_gross
+FROM films;
+
+-- Q2. Query for average value, sum of all values and standard deviation of budget column.
+SELECT AVG(budget) AS avg_budget, SUM(budget), STDDEV(budget)
+FROM films;
+
+-- Q3. How many null values exist in the certification column?
+SELECT COUNT(*)
+FROM films
+WHERE certification IS NULL;
+
+-- Q4.How many rows exist in the films table?
+-- How many rows have non-null values in the gross column?
+-- How many rows have non-null values in both the gross column and the budget column?
+SELECT COUNT(*)
+FROM films;
+SELECT COUNT(gross)
+FROM films;
+SELECT COUNT(gross-budget)
+FROM films;
+
+-- Q5. In the films table, how many distinct languages exist?
+SELECT COUNT (DISTINCT language) AS num_languages
+FROM films;
+
+-- Q6. Query for the sum of the gross column of all UK movies made after 2010.
+SELECT SUM(gross)
+FROM films
+WHERE country = 'UK'
+AND release_year > 2010;
+
+-- Q7. What’s the average budget of R rated films produced in Spanish or French which were released in the 1990s?
+SELECT AVG(budget)
+FROM films
+WHERE certification = 'R'
+AND language IN ('Spanish', 'French')
+AND release_year BETWEEN 1990 AND 1999;
+
+-- Q8. Query for title and duration of films which are longer than average duration. Please sort the results in ascending duration.
+SELECT title, duration
+FROM films
+WHERE duration > (SELECT AVG(duration) FROM films)
+ORDER BY duration;
+
+-- Q9. Standardize duration of each film, return with its title and duration.
+SELECT title, duration, (duration-(SELECT AVG(duration) FROM films)/(SELECT STDDEV(duration) FROM films)) AS standardized_duration
+FROM films;
+
+
+------------------
+---- GROUP BY ----
+
+-- Q1. In how may different languages did each country film?
+SELECT country, COUNT(language)
+FROM films
+GROUP BY country;
+
+-- Q2. How may films were released in each year? Please sort results from greatest count to smallest count.
+SELECT release_year, COUNT(title)
+FROM films
+GROUP BY release_year
+ORDER BY COUNT(title) DESC;
+
+-- Q3. List the total budget of each certification in each year. Please sort the result by release year ascending and certification ascending.
+SELECT release_year, certification, SUM(budget)
+FROM films
+GROUP BY release_year, certification
+ORDER BY release_year, certification;
+
+-- Q4. Query for the average gross, average budget and average profit (gross- budget) of R rated movies in each year. Filter out the rows having null values in gross or budget.
+SELECT AVG(gross), AVG(budget), AVG(gross-budget)
+FROM films
+WHERE certification = 'R'
+AND (gross-budget) IS NOT NULL
+GROUP BY release_year;
+
+-- Q5. Count the films which made more than 100 million in profit, in each year and by each certification. List the results in descending order by count of films.
+SELECT release_year, certification, COUNT(*)
+FROM films
+WHERE (gross-budgt) > 100000000
+GROUP BY release_year, certification
+ORDER BY COUNT(*)
+
+-- Q6. List the total gross, total budget and profit percentage (rounded to two decimal places) of R rated movies in each year. Sort by most recent year to least recent. Make sure to filter out the rows having null values in the gross or budget columns.
+SELECT release_year,SUM(gross), SUM(budget), ROUND(SUM(gross-budget)*100.0/SUM(gross),2) AS profit_percentage
+FROM films
+WHERE certification = 'R'
+GROUP BY release_year
+ORDER BY release_year;
+
+
+----------------
+---- HAVING ----
+
+-- Q1. In the films table, which countries have more than 50 films?
+SELECT country, COUNT(title)
+FROM films
+GROUP BY country
+HAVING COUNT(titles) > 50;
+
+-- Q2. In films table, which countries have films in more than 4 languages?
+SELECT country, COUNT(DISTINCT language)
+FROM films
+GROUP BY country
+HAVING COUNT(DISTINCT language) > 4;
+
+-- Q3. In the year 2016, what certifications earned more than 1.5 billion gross? Please list the certifications with their total gross.
+SELECT certification, SUM(gross)
+FROM films
+WHERE release_year = 2016
+GROUP BY certification
+HAVING SUM(gross) > 1500000000;
+
+-- Q4. After 2010, which years have average profit more than 18 million? Please list the release years with their average gross, budget and profit. Filter out the rows having null values in gross or budget.
+SELECT release_year, AVG(gross), AVG(budget), AVG(gross-budget)
+FROM films
+WHERE release_year > 2010
+AND (gross-budget) IS NOT NULL
+GROUP BY release_year
+HAVING AVG(gross-profit) > 18000000
+
+-- Q5. Which countries at which years have a profit percentage of more than 50? Query for country, release year and profit percentage sorted by ascending country and descending profit percentage order.
+SELECT country, release_year, SUM(gross)-SUM(budget)*100.0/SUM(gross) AS profit_percentage
+FROM films
+WHERE (gross-budget) IS NOT NULL
+GROUP BY country, release_year
+HAVING SUM(gross)-SUM(budget)*100.0/SUM(gross) > 50
+ORDER BY country ASC,  profit_percentage ASC;
+
+--------------------
+---- INNER JOIN ----
+
+-- Q2 Query for title, release year, country, and imdb_score of films which were released in 2012 and had scores greater than 7.5.                                                                                                                           
+SELECT f.title, f.release_year, f.country, r.imdb_score
+FROM films as f
+INNER JOIN reviews as r
+ON f.id =r.film_id
+WHERE f.release_year = 2012
+AND r.imdb_score > 7.5;
+
+--  Q3 Query for the number of total films, max and min imdb_scores and average imdb_scores of each country after 2010.
+SELECT country, COUNT(*), MAX(imdb_score), MIN(imdb_score), AVG(imdb_score)
+FROM films as f
+INNER JOIN reviews as r
+ON f.id =r.film_id
+WHERE f.release_year > 2010
+GROUP BY country;
+
+-- Q4 Query for the name of the director of each film. Return title from films, name from people and role from roles.
+SELECT f.title, p.name, r.role
+FROM roles as r
+INNER JOIN films as f
+ON f.id = r.film_id
+INNER JOIN people as p
+ON r.person_id=p.id;
+
+-- Q5 Query for film_id and film title of films which have more than 2 actors born in the 90s. Include the number of actors born in the 90s.
+SELECT r.film_id, f.title, COUNT(r.role)
+FROM roles as r
+INNER JOIN films as f
+ON f.id = r.film_id
+INNER JOIN people as p
+ON r.person_id=p.id
+WHERE p.birthdate BETWEEN '1990-01-01' AND '1999-12-31'
+GROUP BY r.film_id, f.title
+HAVING COUNT(r.role) > 2;
+
+
+--------------------
+---- OUTER JOIN ----
+
+-- Q1 Query for country code, name from countries table as country, and name from languages table as language.
+-- Use countries as the left table and languages as the right table.
+
+SELECT c.code, c.name AS country, l.name AS language
+FROM countries AS c
+LEFT JOIN languages as l
+ON c.code = l.code;
+
+-- Q2 How many different languages are spoken in each country? Query for country name from countries, and number of languages as num_lang.
+-- Sort the resulting data by number of languages in descending order.
+SELECT c.name AS country, COUNT(DISTINCT l.name) AS num_lang
+FROM countries AS c
+LEFT JOIN languages as l
+ON c.code = l.code
+GROUP BY c.name
+ORDER BY COUNT(DISTINCT l.name) DESC;
+
+
+-- Q3 How many different countries and distinct different languages exist on each contrinent? Sort the results by continent in alphabetic order.
+SELECT continent, COUNT(c.name) AS num_country, COUNT(DISTINCT l.name) AS num_lang
+FROM countries AS c
+LEFT JOIN languages as l
+ON c.code = l.code
+GROUP BY c.continent
+ORDER BY c.continent;
+
+-- Q4 Query for language name and count of continents on which that language is spoken, 
+-- sort the result by number of continents descending and make sure to only include languages spoke on 4 or more continents.
+SELECT l.name, COUNT(DISTINCT c.continent) AS num_continent
+FROM countries AS c
+RIGHT JOIN languages as l
+ON c.code = l.code
+GROUP BY l.name
+HAVING COUNT(DISTINCT c.continent) > 3
+ORDER BY num_continent DESC;
+
+-- Q5 Query for the correlation coefficient of life expectancy and gdp_percapita from the economies and populations tables.
+SELECT CORR(p.life_expectancy,e.gdp_percapita)
+FROM economies AS e
+FULL JOIN populations AS p
+ON p.country_code=e.code AND p.year=e.year;
+
+---------------------
+---- SET CLAUSES ----
+
+-- Q3 Query for the economy codes which have non-null unemployment reate records in both 2010 and 2015.
+SELECT code FROM economies
+WHERE year = 2010 AND unemployment_rate is not null
+INTERSECT
+SELECT code FROM economies
+WHERE year = 2015 AND unemployment_rate is not null;
+
+-- Q4 Which continents have populations greater than 1 billion? Filter out the continents with total area greater than 25000000.
+SELECT continent FROM countries c
+LEFT JOIN populations p ON c.code = p.country_code
+GROUP BY continent HAVING SUM(size)>1000000000
+EXCEPT
+SELECT continent FROM countries 
+GROUP BY continent HAVING SUM(surface_area)>25000000;
+
+
+--------------------
+---- SUBQUERIES ----
+
+-- Q1 - in WHERE
+-- In 2015, which countries had populations greater than the average population in that year? Query country code and size for these countries.
+SELECT country_code, size
+FROM populations
+WHERE year = 2015
+AND size > (SELECT AVG(size)
+            FROM populations);
+
+-- Q2 in WHERE
+-- In 2015, what was the income group distribution of countries whose fertility rate was lower than 2? Sort results by number of countries in income group desc.
+SELECT income_group, COUNT(code)
+FROM economies
+WHERE year = 2015
+AND code IN (SELECT country_code FROM populations WHERE fertility_rate > 2.0 AND year = 2015)
+GROUP BY income_group
+ORDER BY COUNT(code) DESC
+;
+
+-- Q3 in WHERE
+-- Query for all available information about people who have been both actors and directors in their lifetime.
+SELECT *
+FROM people
+WHERE id IN (
+    SELECT person_id
+    FROM roles
+    WHERE role = 'director'
+    INTERSECT
+    SELECT person_id
+    FROM roles
+    WHERE role = 'actor'
+    )
+;
+
+-- Q4 in FROM
+-- Query for country name, area per capita using surface_area/population, and gdp_percapita.
+SELECT country, area_percapita, gdp_percapita
+FROM (SELECT code, c.name AS country, surface_area/size AS area_pc
+      FROM countries cannot
+      JOIN populations p ON c.code = p.country_code
+      WHERE year = 2015) AS q
+LEFT JOIN economies e ON q.code = e.code
+AND year = 2015;
+--
+SELECT c.name, surface_area/size AS area_pc, gdp_percapita
+FROM countries c
+LEFT JOIN populations p
+ON c.code=p.country_code
+LEFT JOIN economies e
+ON c.code=e.code;
+
+
+-- Q7 in SELECT
+-- Query for name of person, their birthday and number of films this person was part of. Try to use subquery instead of GROUP BY.
+SELECT name, birthdate, (SELECT COUNT(film_id) FROM roles r
+                         WHERE r.person_id = p.Id) AS film_num
+FROM people p 
+ORDER BY birthdate;
